@@ -7,4 +7,4 @@ TODO: document fabric.toml
 ## Next Features
 - cors support
 - cluster support
-- websocket support?
+- ~~websocket support?~~
