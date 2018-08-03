@@ -4,8 +4,8 @@ const http = require("http");
 // 3rd party
 const Trouter = require('trouter');
 const { fsPathToURL, methodToHTTP } = require("./helpers");
-const { createError } = require('../../error');
-const { log, logError } = require('../../log');
+const { createError } = require('../error');
+const { log, logError } = require('../log');
 
 function registerShutdown(fn) {
     let run = false;

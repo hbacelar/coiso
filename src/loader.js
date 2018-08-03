@@ -1,4 +1,4 @@
-const http = require("./stereotype/http");
+const http = require("./http");
 
 // TODO: process creation (tagged processes)
 module.exports = async (schedule, options) => {
