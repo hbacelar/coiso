@@ -1,0 +1,28 @@
+{
+  "name": "coiso",
+  "version": "1.0.0",
+  "description": "Opinionated HTTP API template",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [
+    "http",
+    "api",
+    "router",
+    "rest"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bin": {
+    "coiso": "./bin/coiso.js"
+  },
+  "dependencies": {
+    "@iarna/toml": "2.0.0",
+    "arg": "2.0.0",
+    "chalk": "2.4.1",
+    "globby": "8.0.1",
+    "trouter": "1.1.0"
+  },
+  "devDependencies": {
+    "typescript": "3.0.1"
+  }
+}
