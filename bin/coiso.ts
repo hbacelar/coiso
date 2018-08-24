@@ -5,21 +5,25 @@ const arg = require('arg');
 const chalk = require('chalk');
 
 // Utilities
-const { version, name } = require('../package');
-const { logError } = require('../src/log');
-const parseEndpoint = require('../src/parse-endpoint.js');
-const discover = require('../src/discover');
-const scheduler = require('../src/scheduler').sameProcess;
-const loader = require('../src/loader');
-const loadConfig = require('../src/config');
+const { version, name } = require('../package.json'); // prevent `tsc` from rewriting original file and complaining about it https://github.com/Microsoft/TypeScript/issues/24715
+import { log, logError } from '../log';
+import parseEndpoint from '../parse-endpoint';
+import { discover, load, fsPathToURL, methodToHTTP } from '../fs';
+import loadConfig from '../config';
+import { createServer } from "../http";
 
 // Constants
-const DEFAULT_HTTP_PORT = 8080;
-const DEFAULT_HTTP_INTERFACE = '127.0.0.1';
+const DEFAULT_RESOURCE_FOLDER = 'resources';
+const DEFAULT_HTTP_BIND_ADDRESS = parseEndpoint('tcp://127.0.0.1:8080');
 
 // Check if the user defined any options
-const args = arg({
-    '--listen': [parseEndpoint],
+const args: {
+    '--listen': [string, number?],
+    '--help': boolean,
+    '--version': boolean,
+    '_': string[]
+} = arg({
+    '--listen': parseEndpoint,
     '-l': '--listen',
 
     '--help': Boolean,
@@ -62,19 +66,23 @@ if (args['--version']) {
 }
 
 // default endpoint
-args['--listen'] = args['--listen'] || [];
-if (args['--listen'].length === 0) {
-    args['--listen'] = [DEFAULT_HTTP_PORT, DEFAULT_HTTP_INTERFACE];
-}
+args['--listen'] = args['--listen'] || DEFAULT_HTTP_BIND_ADDRESS;
 
 (async () => {
     try {
-        const path = args._[0] || 'resources';
-        const resources = await discover(path);
+        log(`Working directory: ${process.cwd()}`);
+        const path: string = args._[0] || DEFAULT_RESOURCE_FOLDER;
         const config = await loadConfig();
+        const resources = await load(await discover(path), Object.assign({}, config));
 
-        // Load tasks
-        await loader(scheduler(resources, config), Object.assign({}, config, { endpoint: args['--listen'] }));
+        // Setup & start server
+        const server = createServer();
+        for (let [resource, handlers] of Object.entries(resources)) {
+            handlers.forEach(([method, handler]) => {
+                server.addRoute(methodToHTTP(method), fsPathToURL(resource), handler);
+            })
+        }
+        await server.listen(...args['--listen']);
     } catch (e) {
         logError(e);
         process.exit(1);

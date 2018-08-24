@@ -1,28 +1,31 @@
 {
   "name": "coiso",
   "version": "1.0.0",
-  "description": "Opinionated HTTP API template",
-  "main": "index.js",
-  "scripts": {},
-  "keywords": [
-    "http",
-    "api",
-    "router",
-    "rest"
-  ],
-  "author": "",
-  "license": "ISC",
+  "description": "Opinionated browser facing HTTP API template",
+  "main": "./http/index.js",
   "bin": {
     "coiso": "./bin/coiso.js"
   },
+  "files": ["/bin/*.js", "**/*.js", "**/*.d.ts"],
+  "scripts": {
+    "clean": "tsc --listEmittedFiles 2>&1 | cut -d' ' -f2 | xargs rm",
+    "build": "npm run clean; tsc"
+  },
+  "keywords": ["http", "api", "router", "rest"],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "@iarna/toml": "2.0.0",
     "arg": "2.0.0",
     "chalk": "2.4.1",
+    "content-type": "1.0.4",
     "globby": "8.0.1",
+    "raw-body": "2.3.3",
     "trouter": "1.1.0"
   },
   "devDependencies": {
+    "@types/globby": "8.0.0",
+    "@types/node": "10.5.7",
     "typescript": "3.0.1"
   }
 }

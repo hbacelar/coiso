@@ -1,7 +1,9 @@
 // Native
-const { URL } = require('url');
+import { URL } from 'url';
 
-module.exports = (str) => {
+type Endpoint = [string, number?];
+
+export default (str: string): Endpoint => {
     const url = new URL(str);
 
     switch (url.protocol) {
@@ -18,8 +20,7 @@ module.exports = (str) => {
             }
             return [url.pathname];
         case 'tcp:':
-            url.port = url.port || 8080;
-            return [parseInt(url.port, 10), url.hostname];
+            return [url.hostname, parseInt(url.port || "8080", 10)];
         default:
             throw new Error(`Unknown endpoint scheme (protocol): ${url.protocol}`);
     }

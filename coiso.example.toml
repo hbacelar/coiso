@@ -1,0 +1,22 @@
+maxLoad=70
+
+[all-markets/v1]
+    [cors]
+        enabled=true
+askslaksj=1212
+
+
+
+[all-markets/v2]
+process="2"
+port=8081
+instances=4
+mem=1024
+
+
+
+[kafka]
+url="asdasd"
+
+    [asd]
+        laksjdasl=1323
