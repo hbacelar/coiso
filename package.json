@@ -8,7 +8,7 @@
   },
   "files": ["/bin/*.js", "**/*.js", "**/*.d.ts"],
   "scripts": {
-    "clean": "tsc --listEmittedFiles 2>&1 | cut -d' ' -f2 | xargs rm",
+    "clean": "tsc --listEmittedFiles 2>&1 | cut -d' ' -f2 | xargs rm -f",
     "build": "npm run clean; tsc"
   },
   "keywords": ["http", "api", "router", "rest"],
