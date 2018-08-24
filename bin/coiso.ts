@@ -5,11 +5,11 @@ const arg = require('arg');
 const chalk = require('chalk');
 
 // Utilities
+import loadConfig from '../config';
+import { createServer } from "../http";
 import { log, logError } from '../log';
 import parseEndpoint from '../parse-endpoint';
 import { discover, load, fsPathToURL, methodToHTTP } from '../fs';
-import loadConfig from '../config';
-import { createServer } from "../http";
 
 // Constants
 const { VERSION, NAME } = require('../package.json'); // prevent `tsc` from rewriting original file and complaining about it https://github.com/Microsoft/TypeScript/issues/24715
