@@ -1,55 +1,31 @@
 // Native
 import {
   createServer as nodeCreateServer,
-  IncomingMessage,
-  ServerResponse,
   Server,
+  IncomingMessage,
+  ServerResponse
 } from 'http';
+import { Socket } from 'net';
+import { parse as parseURL } from 'url';
 
 // 3rd party
-const Trouter = require('trouter');
-import {createError} from '../error';
-import {log} from '../log';
-
-/* @link https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods */
-/* CONNECT, TRACE, OPTIONS and PATCH not supported on purpose */
-enum HTTP_METHOD {
-  /* REST */
-  GET = 'GET',
-  HEAD = 'HEAD',
-  POST = 'POST',
-  PUT = 'PUT',
-  DELETE = 'DELETE',
-
-  /* SHORTHAND */
-  ANY = '*', // any of the above
-}
+import WebSocket from 'ws';
+import { createError } from '../error';
+import { log, logError } from '../log';
+const findMyWay = require('find-my-way');
 
 export interface APIServer {
   // Raw nodejs server
   server: Server;
 
   /* route methods */
-  get: ServerRouteFn;
-  head: ServerRouteFn;
-  post: ServerRouteFn;
-  put: ServerRouteFn;
-  delete: ServerRouteFn;
-  any: ServerRouteFn;
-  addRoute(method: string, route: string, handler: RouteHandler): APIServer;
+  addRequestHandler(route: string, handler: Function): APIServer;
+  addWebsocketHandler(route: string, handler: Function): APIServer;
 
   /* lifecyle methods */
   listen(ifc_path: string, port?: number): Promise<void>;
   close(): Promise<void>;
 }
-
-type RequestParams<T> = {[p: string]: T} | {}; // Dictionary<string, string>
-type RouteHandler = (
-  req: IncomingMessage,
-  res: ServerResponse,
-  params: RequestParams<string>,
-) => void;
-type ServerRouteFn = (route: string, handler: RouteHandler) => APIServer;
 
 // Used to run code when process is bound to shutdown
 function registerShutdown(fn: () => void) {
@@ -62,32 +38,61 @@ function registerShutdown(fn: () => void) {
     }
   };
 
-  process.once('SIGINT', wrapper);
-  process.once('SIGTERM', wrapper);
+  process.once('SIGINT', wrapper); // <Ctrl>+C
+  process.once('SIGTERM', wrapper); // Signal 15
   process.once('exit', wrapper);
 }
 
-const {PerformanceObserver, performance} = require('perf_hooks');
-
 export function createServer(): APIServer {
   let routes = 0;
-  const trouter = new Trouter(); // consider find-my-way router for more performance
-  const server = nodeCreateServer((req, res) => {
-    performance.mark('find route');
-    const obj = trouter.find(req.method, req.url);
-    performance.mark('route found');
-    performance.measure('routing', 'find route', 'route found');
-    // route not found
-    if (obj === false) {
-      res.statusCode = 404;
-      return res.end();
+  const router = findMyWay({
+    defaultRoute(_: IncomingMessage, res: ServerResponse) {
+      res.statusCode = 404
+      res.end()
+    },
+    ignoreTrailingSlash: true,
+    allowUnsafeRegex: false,
+    caseSensitive: true // TODO: review this decision
+  });
+  const websocket_router = findMyWay({
+    ignoreTrailingSlash: true,
+    allowUnsafeRegex: false,
+    caseSensitive: true // TODO: review this decision
+  });
+  const server = nodeCreateServer();
+
+  // Possible errors are kernel file limits being reached
+  server.on('error', function (e) {
+    logError(e);
+  })
+
+  // Possible errors are incorrect/malformed HTTP requests
+  server.on('clientError', (e: Error, socket: Socket) => {
+    logError(e);
+    socket.destroy();
+  });
+
+  server.on('request', async (req: IncomingMessage, res: ServerResponse) => {
+    try {
+      await router.lookup(req, res);
+    } catch (e) {
+      logError(e);
+      res.statusCode = 500;
+      res.end();
+    }
+  });
+
+  server.on('upgrade', (req: IncomingMessage, socket: Socket, head: Buffer) => {
+    const path = parseURL(req.url || '').pathname;
+    const { handler, params } = websocket_router.find(req.method, path);
+
+    if (!handler) {
+      socket.destroy();
+      return;
     }
 
-    performance.mark('handler start');
-    // Execute route handler
-    obj.handler(req, res);
-    performance.mark('handler end');
-    performance.measure('handler', 'handler start', 'handler end');
+    // Calls route handler
+    handler(req, socket, head, params);
   });
 
   return {
@@ -95,34 +100,39 @@ export function createServer(): APIServer {
       return server;
     },
 
-    get(route: string, handler: RouteHandler): APIServer {
-      this.addRoute(HTTP_METHOD.GET, route, handler);
-      return this;
-    },
-    head(route: string, handler: RouteHandler): APIServer {
-      this.addRoute(HTTP_METHOD.HEAD, route, handler);
-      return this;
-    },
-    post(route: string, handler: RouteHandler): APIServer {
-      this.addRoute(HTTP_METHOD.POST, route, handler);
-      return this;
-    },
-    put(route: string, handler: RouteHandler): APIServer {
-      this.addRoute(HTTP_METHOD.PUT, route, handler);
-      return this;
-    },
-    delete(route: string, handler: RouteHandler): APIServer {
-      this.addRoute(HTTP_METHOD.DELETE, route, handler);
-      return this;
-    },
-    any(route: string, handler: RouteHandler): APIServer {
-      this.addRoute(HTTP_METHOD.ANY, route, handler);
-      return this;
-    },
-    addRoute(method: string, route: string, handler: RouteHandler): APIServer {
-      log(`Route: "${method} ${route}"`);
-      trouter.add(method, route, handler);
+    addRequestHandler(route: string, handler: Function): APIServer {
+      router.all(route, handler);
       routes += 1;
+      log(`Registered handler for "${route}"`);
+      return this;
+    },
+
+    addWebsocketHandler(route: string, handler: Function): APIServer {
+      // TODO: add support for `verifyClient`
+      const wss = new WebSocket.Server({ noServer: true, perMessageDeflate: false });
+
+      wss.on('error', function (e) {
+        logError(e);
+      });
+
+      wss.on('connection', async (ws: WebSocket, req: IncomingMessage, params: object) => {
+        try {
+          await handler(ws, req, params);
+        } catch (e) {
+          logError(e);
+          // @link https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent
+          ws.close(1011);
+        }
+      });
+
+      websocket_router.all(route, (req: IncomingMessage, socket: Socket, head: Buffer, params: object): void => {
+        wss.handleUpgrade(req, socket, head, function onSuccessfulUpgrade(ws: WebSocket) {
+          wss.emit('connection', ws, req, params);
+        });
+      });
+
+      routes += 1;
+      log(`Registered websocket handler for "${route}"`);
       return this;
     },
 
@@ -132,9 +142,8 @@ export function createServer(): APIServer {
           return reject(createError('no-routes', 'No HTTP routes defined'));
         }
 
-        server.once('error', err => {
-          reject(err);
-        });
+        // Possible errors include EADDRINUSE
+        server.once('error', reject);
 
         const listen = ifc_path
           ? server.listen.bind(server, port, ifc_path)
@@ -143,7 +152,14 @@ export function createServer(): APIServer {
         listen(() => {
           const details = server.address();
 
-          registerShutdown(() => server.close());
+          enableDestroy(server);
+
+          registerShutdown(() => {
+            log('HTTP server shutdown');
+            (server as Server & { destroy: (cb: Function) => void }).destroy(() => {
+              log('HTTP server closed');
+            })
+          });
 
           if (typeof details === 'string') {
             log(`Accepting connections on ${details}`);
@@ -162,5 +178,25 @@ export function createServer(): APIServer {
         server.close(resolve);
       });
     },
+  };
+}
+
+function enableDestroy(server: Server): void {
+  const connections: { [key: string]: Socket } = {};
+
+  server.on('connection', (conn) => {
+    const key = `${conn.remoteAddress}:${conn.remotePort}`;
+    connections[key] = conn;
+    conn.once('close', () => delete connections[key]);
+  });
+
+  (server as Server & { destroy: (cb: Function) => void }).destroy = function (cb) {
+    server.close(cb);
+    let i = 0;
+    for (var key in connections) {
+      connections[key].destroy();
+      i++;
+    }
+    log(`Closed ${i} connections`);
   };
 }

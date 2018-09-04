@@ -14,7 +14,6 @@ exposedHeaders = ""
 
 [route."/"]
   option1 = 127
-  module = "/cenas.js"
 
   [route."/".cors]
   enabled = true

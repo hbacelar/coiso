@@ -6,26 +6,39 @@
   "bin": {
     "coiso": "./bin/coiso.js"
   },
-  "files": ["/bin/*.js", "**/*.js", "**/*.d.ts"],
+  "files": [
+    "/bin/*.js",
+    "**/*.js",
+    "**/*.d.ts"
+  ],
   "scripts": {
     "clean": "tsc --listEmittedFiles 2>&1 | cut -d' ' -f2 | xargs rm -f",
     "build": "npm run clean; tsc"
   },
-  "keywords": ["http", "api", "router", "rest"],
+  "keywords": [
+    "http",
+    "api",
+    "router",
+    "rest"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@iarna/toml": "2.0.0",
     "arg": "2.0.0",
+    "bufferutil": "4.0.0",
     "chalk": "2.4.1",
     "content-type": "1.0.4",
+    "find-my-way": "1.15.1",
     "globby": "8.0.1",
     "raw-body": "2.3.3",
-    "trouter": "1.1.0"
+    "utf-8-validate": "5.0.1",
+    "ws": "6.0.0"
   },
   "devDependencies": {
     "@types/globby": "8.0.0",
     "@types/node": "10.5.7",
+    "@types/ws": "6.0.0",
     "typescript": "3.0.1"
   }
 }

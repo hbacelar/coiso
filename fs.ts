@@ -1,112 +1,175 @@
-// Native
-import {basename, join} from 'path';
+// // Native
+// import {basename, join} from 'path';
 
-// Packages
-import globby from 'globby';
-import {createError} from './error';
+// // Packages
+// import globby from 'globby';
+// import {createError} from './error';
 
-export type Handler = (req: any, res: any, params?: any) => Promise<any>;
+// // Types
+// export type Handler = (req: any, res: any) => Promise<any>;
 
-export type HandlerMap = {
-  [path: string]: [string, Handler][];
-};
+// export type Module = {[method: string]: Handler};
 
-export type FilesystemResource = {
-  fullyQualifiedPath: string;
-  resource: string;
-  options?: object;
-};
+// export type ModuleLoader = (initValue?: any, options?: any) => Promise<Module>;
 
-type Module = {[method: string]: Handler};
+// export type InitFunction = (opts?: object) => Promise<any>;
 
-type ModuleLoader = (options?: any) => Promise<Module>;
+// export type Resources = {[path: string]: Module | ModuleLoader};
 
-/**
- * TODO: load routes using async iterator
- * @param file Path to resources folder. If not absolute, it's relative to `process.cwd()`
- */
-export async function discover(file: string): Promise<FilesystemResource[]> {
-  const paths = [...(await globby(['**/*.js', '!**/_*'], {cwd: file}))].map(
-    path => ({
-      fullyQualifiedPath: join(process.cwd(), file, path),
-      resource: path,
-      options: {},
-    }),
-  );
+// export type Project = {
+//   init?: InitFunction;
+//   resources: Resources;
+// };
 
-  if (paths.length === 0) {
-    throw createError(
-      'no-resources-found',
-      `No resources found in path "${basename(file)}"`,
-    );
-  }
+// // Constants
+// const INIT_FILENAME = 'init.js';
+// const FILE_ALLOW_LIST = ['**/*.js', '!**/_*'];
 
-  return paths;
-}
+// export function validateInitFunction(fn: Function): void {
+//   if (typeof fn !== 'function') {
+//     throw createError('init-invalid-type', 'Init must be a function');
+//   }
+//   if (fn.length > 1) {
+//     throw createError(
+//       'init-invalid-signature',
+//       'Init function must have `async (options?: any)` signature',
+//     );
+//   }
+// }
 
-/**
- * TODO: hardening
- * @param resources
- * @param options
- */
-export async function load(
-  resources: FilesystemResource[],
-  options: {[k: string]: any},
-): Promise<HandlerMap> {
-  const tasks: any[] = [];
-  const loadedResources: HandlerMap = {};
+// export function validateModuleLoader(fn: Function): void {
+//   if (typeof fn !== 'function') {
+//     throw createError(
+//       'module-loader-invalid-type',
+//       'Module loader must be a function',
+//     );
+//   }
+// }
 
-  function parseModule(module: Module, relativeResourcePath: string) {
-    for (let [method, handler] of Object.entries(module)) {
-      if (!loadedResources[relativeResourcePath]) {
-        loadedResources[relativeResourcePath] = [];
-      }
+// export function validateModuleObject(mod: object): void {
+//   for (let [_, handler] of Object.entries(mod)) {
+//     if (handler.length !== 2) {
+//       throw createError(
+//         'invalid-handler-signature',
+//         'Handler must have `(req: IncomingMessage, res: ServerResponse)` signature',
+//       );
+//     }
+//   }
+// }
 
-      if (handler.length < 2 || handler.length > 3) {
-        throw createError(
-          'invalid-handler-signature',
-          'Handler must have req, res and (optional) param args',
-        );
-      }
+// export function validateModule(mod: any): void {
+//   switch (typeof mod) {
+//     case 'function':
+//       validateModuleLoader(mod);
+//       break;
+//     case 'object':
+//       validateModuleObject(mod);
+//       break;
+//     default:
+//       throw createError(
+//         'module-invalid',
+//         'Modules must be either loaders or objects',
+//       );
+//   }
+// }
 
-      loadedResources[relativeResourcePath].push([method, handler as Handler]);
-    }
-  }
+// /**
+//  * Build a project from a filesystem structure
+//  * @param file Path to resources folder. If not absolute, it's relative to `process.cwd()`
+//  */
+// export async function build(root: string): Promise<Project> {
+//   const project: Project = {
+//     resources: {},
+//   };
 
-  resources.forEach(resource => {
-    const module: Module | ModuleLoader = require(resource.fullyQualifiedPath);
+//   project.resources = [...(await globby(FILE_ALLOW_LIST, {cwd: root}))].reduce(
+//     (proj, path) => {
+//       proj[path] = require(join(process.cwd(), root, path));
+//       validateModule(proj[path]);
+//       return proj;
+//     },
+//     project.resources,
+//   );
 
-    switch (typeof module) {
-      case 'object': // No init process required
-        parseModule(module as Module, resource.resource);
-        break;
-      case 'function': // start init process
-        tasks.push(
-          (module as ModuleLoader)(options[resource.resource]).then(
-            (initializedModule: any) =>
-              parseModule(initializedModule, resource.resource),
-          ),
-        );
-        break;
-    }
-  });
+//   if (Object.keys(project.resources).length === 0) {
+//     throw createError(
+//       'no-resources-found',
+//       `No resources found in path "${basename(root)}"`,
+//     );
+//   }
 
-  return Promise.all(tasks).then(() => loadedResources);
-}
+//   try {
+//     project.init = require(join(process.cwd(), INIT_FILENAME)) as InitFunction;
+//     validateInitFunction(project.init);
+//   } catch {
+//     // #init is not mandatory; move on
+//   }
 
-/**
- * Patterns in routes
- *  static (/users)
- *  named parameters (/users/[id].js)
- *  nested parameters (/users/[id]/books/[title].js)
- *  any match / wildcards (/users/*.js)
- *
- *  Because of technical limitations, the following characters cannot be used: /, \, ?, :, ( and ).
- */
-export function fsPathToURL(path: string): string {
-  return path.replace(/\[(\w+)\]/g, ':$1').replace('index.js', '') || '/';
-}
+//   return project;
+// }
 
-export function methodToHTTP(method: string): string {
-  return method.toUpperCase() === 'ALL' ? '*' : method.toUpperCase();
-}
+// /**
+//  * TODO: hardening
+//  * @param resources
+//  * @param options
+//  */
+// export async function load(
+//   project: Project,
+//   options: {[k: string]: any},
+// ): Promise<{[path: string]: Module}> {
+//   const tasks: any[] = [];
+//   const loadedResources: {[path: string]: Module} = {};
+//   let initValue: any;
+
+//   function parseModule(mod: Module, relativeResourcePath: string) {
+//     validateModule(mod);
+
+//     if (!loadedResources[relativeResourcePath]) {
+//       loadedResources[relativeResourcePath] = {};
+//     }
+
+//     loadedResources[relativeResourcePath] = mod;
+//   }
+
+//   // Project #init goes first
+//   if (project.init) {
+//     initValue = await project.init(options);
+//   }
+
+//   // Load resources
+//   Object.keys(project.resources).forEach(path => {
+//     const mod = project.resources[path];
+
+//     switch (typeof mod) {
+//       case 'object': // Resolved module
+//         parseModule(mod as Module, path);
+//         break;
+//       case 'function': // Module loader
+//         tasks.push(
+//           (mod as ModuleLoader)(initValue, options[path]).then(
+//             initializedModule => parseModule(initializedModule, path),
+//           ),
+//         );
+//         break;
+//     }
+//   });
+
+//   return Promise.all(tasks).then(() => loadedResources);
+// }
+
+// /**
+//  * Patterns in routes
+//  *  static (/users)
+//  *  named parameters (/users/[id].js)
+//  *  nested parameters (/users/[id]/books/[title].js)
+//  *  any match / wildcards (/users/*.js)
+//  *
+//  *  Because of technical limitations, the following characters cannot be used: /, \, ?, :, ( and ).
+//  */
+// export function fsPathToURL(path: string): string {
+//   return path.replace(/\[(\w+)\]/g, ':$1').replace('index.js', '') || '/';
+// }
+
+// export function methodToHTTP(method: string): string {
+//   return method.toUpperCase() === 'ALL' ? '*' : method.toUpperCase();
+// }
