@@ -81,9 +81,9 @@ Example:
 TODO
 
 ## Context object
-The context object is an additional parameter passed to [handler functions](#). 
+The context object is an additional parameter passed to [handler functions](https://github.com/jorgemsrs/coiso/blob/master/http/index.ts#L22-L24). 
 It is a `coiso` idiom which can be safely ignored. You can check it's [schema in 
-the sourcecode](#).
+the sourcecode](https://github.com/jorgemsrs/coiso/blob/master/http/index.ts#L17).
 
 
 ## TODO
