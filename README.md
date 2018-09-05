@@ -21,21 +21,23 @@ Create a `resources` folder in your project's root and enter it:
 
 Then, create an `index.js` file and export a function that accepts the standard 
 NodeJS HTTP handler signature `(req: http.IncomingMessage, res: http.ServerResponse)`:
-
-    module.exports = (req, res) => {
-        res.end('Hello World!');
-    }
+```javascript
+module.exports = (req, res) => {
+    res.end('Hello World!');
+}
+```
 
 Next, create an `index.ws.js` file and export a function that accepts the standard 
 Websocket handler signature `(ws: WebSocket, res: http.IncomingMessage)`:
-
-    module.exports = function (ws, req) {
-        // Echo back the received messages
-        ws.on('message', ws.send);
-        
-        // On connect
-        ws.send('Hello websocket');
-    };
+```javascript
+module.exports = function (ws, req) {
+    // Echo back the received messages
+    ws.on('message', ws.send);
+    
+    // On connect
+    ws.send('Hello websocket');
+};
+```
 
 Finally, add a start script in your `package.json` file:
 
