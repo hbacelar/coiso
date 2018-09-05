@@ -16,7 +16,7 @@ const findMyWay = require('find-my-way');
 
 export type RequestContext = {
   params: { [key: string]: any },
-  log?: any
+  log?: any // TODO: implement
 };
 
 export type RequestHandler = (req: IncomingMessage, res: ServerResponse, ctx?: RequestContext) => Promise<void>
