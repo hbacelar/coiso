@@ -22,7 +22,7 @@ Create a `resources` folder in your project's root and enter it:
 Then, create an `index.js` file and export a function that accepts the standard 
 NodeJS HTTP handler signature `(req: http.IncomingMessage, res: http.ServerResponse)`:
 ```javascript
-module.exports = (req, res) => {
+module.exports = async (req, res) => {
     res.end('Hello World!');
 }
 ```
@@ -30,7 +30,7 @@ module.exports = (req, res) => {
 Next, create an `index.ws.js` file and export a function that accepts the standard 
 Websocket handler signature `(ws: WebSocket, res: http.IncomingMessage)`:
 ```javascript
-module.exports = function (ws, req) {
+module.exports = async (ws, req) => {
     // Echo back the received messages
     ws.on('message', ws.send);
     
