@@ -1,6 +1,6 @@
 {
   "name": "coiso",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Opinionated browser facing HTTP API template",
   "main": "./http/index.js",
   "bin": {
@@ -11,6 +11,7 @@
     "*.js",
     "*.d.ts"
   ],
+  "repository": "jorgemsrs/coiso",
   "scripts": {
     "clean": "tsc --listEmittedFiles 2>&1 | cut -d' ' -f2 | xargs rm -f",
     "build": "npm run clean; tsc"
