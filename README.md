@@ -19,16 +19,15 @@ Create a `resources` folder in your project's root and enter it:
 
     $ mkdir resources && cd resources
 
-Then, create an `index.js` file and export a function that accepts the standard 
-NodeJS HTTP handler signature `(req: http.IncomingMessage, res: http.ServerResponse)`:
+Then, create an `index.js` file and export a function that accepts the [standard 
+NodeJS HTTP handler signature](https://github.com/jorgemsrs/coiso/blob/master/http/index.ts#L22):
 ```javascript
 module.exports = async (req, res) => {
     res.end('Hello World!');
 }
 ```
 
-Next, create an `index.ws.js` file and export a function that accepts the standard 
-Websocket handler signature `(ws: WebSocket, res: http.IncomingMessage)`:
+Next, create an `index.ws.js` file and export a function that accepts the [standard Websocket handler signature](https://github.com/jorgemsrs/coiso/blob/master/http/index.ts#L24):
 ```javascript
 module.exports = async (ws, req) => {
     // Echo back the received messages
@@ -84,8 +83,7 @@ TODO
 
 ## Context object
 The context object is an additional parameter passed to [handler functions](https://github.com/jorgemsrs/coiso/blob/master/http/index.ts#L22-L24). 
-It is a `coiso` idiom which can be safely ignored. You can check it's [schema in 
-the sourcecode](https://github.com/jorgemsrs/coiso/blob/master/http/index.ts#L17).
+It is a `coiso` idiom which can be safely ignored. You can check it's [schema in the sourcecode](https://github.com/jorgemsrs/coiso/blob/master/http/index.ts#L17).
 
 
 ## TODO
