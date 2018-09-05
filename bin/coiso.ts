@@ -73,7 +73,7 @@ args['--listen'] = args['--listen'] || DEFAULT_HTTP_BIND_ADDRESS;
 
         // Setup & start server
         const server = createServer();
-        for (let [path, { request, websocket }] of Object.entries(project.handlers)) {
+        for (const [path, { request, websocket }] of Object.entries(project.handlers)) {
             request && server.addRequestHandler(path, request)
             websocket && server.addWebsocketHandler(path, websocket)
         }

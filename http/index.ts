@@ -14,13 +14,22 @@ import { createError } from '../error';
 import { log, logError } from '../log';
 const findMyWay = require('find-my-way');
 
+export type RequestContext = {
+  params: { [key: string]: any },
+  log: any
+};
+
+export type RequestHandler = (req: IncomingMessage, res: ServerResponse, ctx?: RequestContext) => Promise<void>
+
+export type WebsocketHandler = (ws: WebSocket, req: IncomingMessage, ctx?: RequestContext) => Promise<void>
+
 export interface APIServer {
   // Raw nodejs server
   server: Server;
 
   /* route methods */
-  addRequestHandler(route: string, handler: Function): APIServer;
-  addWebsocketHandler(route: string, handler: Function): APIServer;
+  addRequestHandler(route: string, handler: RequestHandler): APIServer;
+  addWebsocketHandler(route: string, handler: WebsocketHandler): APIServer;
 
   /* lifecyle methods */
   listen(ifc_path: string, port?: number): Promise<void>;
@@ -59,7 +68,7 @@ export function createServer(): APIServer {
     allowUnsafeRegex: false,
     caseSensitive: true // TODO: review this decision
   });
-  const server = nodeCreateServer();
+  const server = enableDestroy(nodeCreateServer());
 
   // Possible errors are kernel file limits being reached
   server.on('error', function (e) {
@@ -152,11 +161,9 @@ export function createServer(): APIServer {
         listen(() => {
           const details = server.address();
 
-          enableDestroy(server);
-
           registerShutdown(() => {
             log('HTTP server shutdown');
-            (server as Server & { destroy: (cb: Function) => void }).destroy(() => {
+            server.destroy(() => {
               log('HTTP server closed');
             })
           });
@@ -181,7 +188,12 @@ export function createServer(): APIServer {
   };
 }
 
-function enableDestroy(server: Server): void {
+/**
+ * Decorate HTTP server with a destroy/0 function
+ * 
+ * @param server NodeJS builtin HTTP server
+ */
+function enableDestroy(server: Server): (Server & { destroy: (cb: () => void) => void }) {
   const connections: { [key: string]: Socket } = {};
 
   server.on('connection', (conn) => {
@@ -190,13 +202,18 @@ function enableDestroy(server: Server): void {
     conn.once('close', () => delete connections[key]);
   });
 
-  (server as Server & { destroy: (cb: Function) => void }).destroy = function (cb) {
+  (server as Server & { destroy: (cb: () => void) => void }).destroy = function (cb) {
+    // Stop accepting new connections
     server.close(cb);
+
+    // Kill remaining ones
     let i = 0;
-    for (var key in connections) {
+    for (const key in connections) {
       connections[key].destroy();
       i++;
     }
     log(`Closed ${i} connections`);
   };
+
+  return server as Server & { destroy: (cb: Function) => void };
 }

@@ -1,7 +1,5 @@
 // Native
 import { join, basename } from 'path';
-import { IncomingMessage, ServerResponse } from 'http';
-import WebSocket from 'ws';
 
 // Packages
 import globby from 'globby';
@@ -10,6 +8,7 @@ import { createError } from './error';
 // Utilities
 import loadConfig from './config';
 import { log, logError } from './log';
+import { RequestHandler, WebsocketHandler } from './http/index';
 
 // Constants
 const RESOURCES_PATH = 'resources';
@@ -21,20 +20,17 @@ type Project = {
   init?: InitFunction;
   config?: object;
   handlers: {
-    [path: string]: { request?: Handler, websocket?: Handler };
+    [path: string]: { request?: RequestHandler, websocket?: WebsocketHandler };
   };
 }
 
 type InitFunction = (config?: object) => Promise<any>;
 
-type Handler = ((req: IncomingMessage, res: ServerResponse) => Promise<void>)
-  | ((ws: WebSocket, req: IncomingMessage) => Promise<void>);
-
 export function isInitFunction(fn: any): fn is InitFunction {
   return typeof fn === 'function' && fn.length <= 2;
 }
 
-export function isHandler(mod: any): mod is Handler {
+export function isHandler(mod: any): mod is RequestHandler | WebsocketHandler {
   return typeof mod === 'function' && mod.length <= 3;
 }
 
@@ -76,9 +72,9 @@ export async function load(root?: string): Promise<Project> {
     proj.handlers[urlPath] = proj.handlers[urlPath] ? proj.handlers[urlPath] : {};
 
     if (isWebsocket) {
-      proj.handlers[urlPath].websocket = mod;
+      proj.handlers[urlPath].websocket = mod as WebsocketHandler;
     } else {
-      proj.handlers[urlPath].request = mod;
+      proj.handlers[urlPath].request = mod as RequestHandler;
     }
 
     return project;
