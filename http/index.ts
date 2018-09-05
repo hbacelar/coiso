@@ -16,12 +16,12 @@ const findMyWay = require('find-my-way');
 
 export type RequestContext = {
   params: { [key: string]: any },
-  log: any
+  log?: any
 };
 
 export type RequestHandler = (req: IncomingMessage, res: ServerResponse, ctx?: RequestContext) => Promise<void>
 
-export type WebsocketHandler = (ws: WebSocket, req: IncomingMessage, ctx?: RequestContext) => Promise<void>
+export type WebSocketHandler = (ws: WebSocket, req: IncomingMessage, ctx?: RequestContext) => Promise<void>
 
 export interface APIServer {
   // Raw nodejs server
@@ -29,7 +29,7 @@ export interface APIServer {
 
   /* route methods */
   addRequestHandler(route: string, handler: RequestHandler): APIServer;
-  addWebsocketHandler(route: string, handler: WebsocketHandler): APIServer;
+  addWebsocketHandler(route: string, handler: WebSocketHandler): APIServer;
 
   /* lifecyle methods */
   listen(ifc_path: string, port?: number): Promise<void>;
@@ -109,14 +109,14 @@ export function createServer(): APIServer {
       return server;
     },
 
-    addRequestHandler(route: string, handler: Function): APIServer {
+    addRequestHandler(route: string, handler: RequestHandler): APIServer {
       router.all(route, handler);
       routes += 1;
       log(`Registered handler for "${route}"`);
       return this;
     },
 
-    addWebsocketHandler(route: string, handler: Function): APIServer {
+    addWebsocketHandler(route: string, handler: WebSocketHandler): APIServer {
       // TODO: add support for `verifyClient`
       const wss = new WebSocket.Server({ noServer: true, perMessageDeflate: false });
 
@@ -124,9 +124,9 @@ export function createServer(): APIServer {
         logError(e);
       });
 
-      wss.on('connection', async (ws: WebSocket, req: IncomingMessage, params: object) => {
+      wss.on('connection', async (ws: WebSocket, req: IncomingMessage, ctx: RequestContext) => {
         try {
-          await handler(ws, req, params);
+          await handler(ws, req, ctx);
         } catch (e) {
           logError(e);
           // @link https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent
@@ -136,7 +136,7 @@ export function createServer(): APIServer {
 
       websocket_router.all(route, (req: IncomingMessage, socket: Socket, head: Buffer, params: object): void => {
         wss.handleUpgrade(req, socket, head, function onSuccessfulUpgrade(ws: WebSocket) {
-          wss.emit('connection', ws, req, params);
+          wss.emit('connection', ws, req, { params });
         });
       });
 
